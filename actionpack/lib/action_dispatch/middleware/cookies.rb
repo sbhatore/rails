@@ -454,7 +454,7 @@ module ActionDispatch
         @parent_jar = parent_jar
         @options = options
         secret = key_generator.generate_key(@options[:signed_cookie_salt])
-        @verifier = ActiveSupport::MessageVerifier.new(secret, digest: digest, serializer: serializer)
+        @verifier = ActiveSupport::MessageVerifier.new(secret, digest: digest, serializer: ActiveSupport::MessageEncryptor::NullSerializer)
       end
 
       # Returns the value of the cookie by +name+ if it is untampered,
@@ -470,10 +470,10 @@ module ActionDispatch
       def []=(name, options)
         if options.is_a?(Hash)
           options.symbolize_keys!
+          options[:value] = @verifier.generate(serialize(options[:value]))
         else
-          options = { :value => options }
+          options = { :value => @verifier.generate(serialize(options)) }
         end
-        options[:value] = @verifier.generate(options)
 
         raise CookieOverflow if options[:value].bytesize > MAX_COOKIE_SIZE
         @parent_jar[name] = options
