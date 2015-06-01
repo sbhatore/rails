@@ -25,6 +25,7 @@ module ActiveSupport
   # hash upon initialization:
   #
   #   @verifier = ActiveSupport::MessageVerifier.new('s3Krit', serializer: YAML)
+
   class MessageVerifier
     class InvalidSignature < StandardError; end
 
@@ -97,10 +98,15 @@ module ActiveSupport
     #   other_verifier = ActiveSupport::MessageVerifier.new 'd1ff3r3nt-s3Krit'
     #   other_verifier.verify(signed_message) # => ActiveSupport::MessageVerifier::InvalidSignature
     def verify(signed_message)
-      if claims = verified(signed_message)
-        ActiveSupport::Claims.verify(claims)
+      if signed_message.include? "--"
+        verifier = ActiveSupport::LegacyMessageVerifier.new(@secret, { :digest => @digest, :serializer => @serializer })
+        verifier.verify(signed_message)
       else
-        raise(InvalidSignature)
+        if claims = verified(signed_message)
+          ActiveSupport::Claims.verify(claims)
+        else
+          raise(InvalidSignature)
+        end
       end
     end
 
@@ -148,4 +154,30 @@ module ActiveSupport
         OpenSSL::HMAC.hexdigest(OpenSSL::Digest.const_get(@digest).new, @secret, data)
       end
   end
+
+  private
+    class LegacyMessageVerifier < MessageVerifier
+      def valid_message?(signed_message)
+        return if signed_message.blank?
+
+        data, digest = signed_message.split("--")
+        data.present? && digest.present? && ActiveSupport::SecurityUtils.secure_compare(digest, generate_digest(data))
+      end
+
+      def verified(signed_message)
+        if valid_message?(signed_message)
+          begin
+            data = signed_message.split("--")[0]
+            @serializer.load decode(data)[0]
+          rescue ArgumentError => argument_error
+            return if argument_error.message =~ %r{invalid base64}
+            raise
+          end
+        end
+      end
+
+      def verify(signed_message)
+        verified(signed_message) || raise(InvalidSignature)
+      end
+    end
 end
