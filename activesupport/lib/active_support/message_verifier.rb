@@ -1,6 +1,7 @@
 require 'base64'
 require 'active_support/core_ext/object/blank'
 require 'active_support/security_utils'
+require 'active_support/claims'
 
 module ActiveSupport
   # +MessageVerifier+ makes it easy to generate and verify messages which are
@@ -26,7 +27,6 @@ module ActiveSupport
   #   @verifier = ActiveSupport::MessageVerifier.new('s3Krit', serializer: YAML)
   class MessageVerifier
     class InvalidSignature < StandardError; end
-    class ExpiredClaims < StandardError; end
 
     def initialize(secret, options = {})
       raise ArgumentError, 'Secret should not be nil.' unless secret
@@ -49,13 +49,6 @@ module ActiveSupport
 
       parts = signed_message.split(".")
       parts.all?(&:present?) && untampered?(parts.pop, parts.join("."))
-    end
-
-    def valid_message_legacy?(signed_message)
-      return if signed_message.blank?
-
-      data, digest = signed_message.split("--")
-      data.present? && digest.present? && untampered?(digest, data)
     end
 
     # Decodes the signed message using the +MessageVerifier+'s secret.
@@ -91,18 +84,6 @@ module ActiveSupport
       end
     end
 
-    def verified_legacy(signed_message)
-      if valid_message_legacy?(signed_message)
-        begin
-          data = signed_message.split("--")[0]
-          @serializer.load(decode(data))
-        rescue ArgumentError => argument_error
-          return if argument_error.message =~ %r{invalid base64}
-          raise
-        end
-      end
-    end
-
     # Decodes the signed message using the +MessageVerifier+'s secret.
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
@@ -117,14 +98,10 @@ module ActiveSupport
     #   other_verifier.verify(signed_message) # => ActiveSupport::MessageVerifier::InvalidSignature
     def verify(signed_message)
       if claims = verified(signed_message)
-        Claims.verify(claims)
+        ActiveSupport::Claims.verify(claims)
       else
         raise(InvalidSignature)
       end
-    end
-
-    def verify_legacy(signed_message)
-      verified_legacy(signed_message) || raise(InvalidSignature)
     end
 
     # Generates a signed message for the provided value.
@@ -134,47 +111,9 @@ module ActiveSupport
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
     #   verifier.generate 'a private message' # => "BAhJIhRwcml2YXRlLW1lc3NhZ2UGOgZFVA==--e2d724331ebdee96a10fb99b089508d1c72bd772"
-    class Claims
-      attr_reader :payload, :purpose, :expires
-
-      def initialize(options)
-        @payload = options.fetch(:value)
-        @purpose = self.class.pick_purpose(options)
-        @expires = self.class.pick_expiration(options)
-      end
-
-      class << self
-        def pick_purpose(options)
-          options.fetch(:for) { 'universal' }
-        end
-
-        def pick_expiration(options)
-          return options[:expires] if options.key?(:expires)
-        end
-
-        def verify(claims)
-          claims['pld'] if parse_expiration(claims['exp'])
-        end
-
-        private
-          def parse_expiration(expiration)
-            return true unless expiration
-
-            Time.iso8601(expiration).tap do |timestamp|
-              raise ExpiredClaims if Time.now.utc > timestamp
-            end
-          end
-      end
-
-      def to_h
-        { 'pld' => @payload, 'for' => @purpose.to_s }.tap do |claims|
-          claims['exp'] = @expires.utc.iso8601(3) if @expires
-        end
-      end
-    end
 
     def generate(options)
-      @claims = Claims.new(options)
+      @claims = ActiveSupport::Claims.new(options)
       data = encode(encoded_header, encoded_claims).join('.')
       "#{data}.#{generate_digest(data)}"
     end
