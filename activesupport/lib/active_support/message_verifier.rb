@@ -103,7 +103,7 @@ module ActiveSupport
         verifier.verify(signed_message)
       else
         if claims = verified(signed_message)
-          ActiveSupport::Claims.verify(claims, options)
+          Claims.verify!(claims, options)
         else
           raise(InvalidSignature)
         end
@@ -119,7 +119,7 @@ module ActiveSupport
     #   verifier.generate 'a private message' # => "BAhJIhRwcml2YXRlLW1lc3NhZ2UGOgZFVA==--e2d724331ebdee96a10fb99b089508d1c72bd772"
 
     def generate(options)
-      @claims = ActiveSupport::Claims.new(options)
+      @claims = Claims.new(options)
       data = encode(encoded_header, encoded_claims).join('.')
       "#{data}.#{generate_digest(data)}"
     end

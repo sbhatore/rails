@@ -20,7 +20,7 @@ module ActiveSupport
         return options[:expires] if options.key?(:expires)
       end
 
-      def verify(claims, options = {})
+      def verify!(claims, options = {})
         raise InvalidClaims if claims['for'] != pick_purpose(options)
         claims['pld'] if parse_expiration(claims['exp'])
       end
