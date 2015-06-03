@@ -1,4 +1,5 @@
 module ActiveSupport
+  class InvalidClaims < StandardError; end
   class ExpiredClaims < StandardError; end
   
   class Claims
@@ -19,7 +20,8 @@ module ActiveSupport
         return options[:expires] if options.key?(:expires)
       end
 
-      def verify(claims)
+      def verify(claims, options = {})
+        raise InvalidClaims if claims['for'] != pick_purpose(options)
         claims['pld'] if parse_expiration(claims['exp'])
       end
 

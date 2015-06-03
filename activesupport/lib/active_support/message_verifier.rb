@@ -97,13 +97,13 @@ module ActiveSupport
     #
     #   other_verifier = ActiveSupport::MessageVerifier.new 'd1ff3r3nt-s3Krit'
     #   other_verifier.verify(signed_message) # => ActiveSupport::MessageVerifier::InvalidSignature
-    def verify(signed_message)
+    def verify(signed_message, options = {})
       if signed_message.include? "--"
         verifier = ActiveSupport::LegacyMessageVerifier.new(@secret, { :digest => @digest, :serializer => @serializer })
         verifier.verify(signed_message)
       else
         if claims = verified(signed_message)
-          ActiveSupport::Claims.verify(claims)
+          ActiveSupport::Claims.verify(claims, options)
         else
           raise(InvalidSignature)
         end
