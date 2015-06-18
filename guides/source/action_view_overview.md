@@ -214,7 +214,8 @@ By default `ActionView::Partials::PartialRenderer` has its object in a local var
 <%= render partial: "product" %>
 ```
 
-within product we'll get `@product` in the local variable `product`, as if we had written:
+within `_product` partial we'll get `@product` in the local variable `product`,
+as if we had written:
 
 ```erb
 <%= render partial: "product", locals: { product: @product } %>
@@ -706,7 +707,7 @@ Returns a select tag with options for each of the minutes 0 through 59 with the 
 
 ```ruby
 # Generates a select field for minutes that defaults to the minutes for the time provided.
-select_minute(Time.now + 6.hours)
+select_minute(Time.now + 10.minutes)
 ```
 
 #### select_month

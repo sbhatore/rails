@@ -587,7 +587,7 @@ module ActiveRecord
       #
       # Removes the +index_accounts_on_column+ in the +accounts+ table.
       #
-      #   remove_index :accounts, :column
+      #   remove_index :accounts, :branch_id
       #
       # Removes the index named +index_accounts_on_branch_id+ in the +accounts+ table.
       #
@@ -662,7 +662,7 @@ module ActiveRecord
       # [<tt>:foreign_key</tt>]
       #   Add an appropriate foreign key. Defaults to false.
       # [<tt>:polymorphic</tt>]
-      #   Wether an additional +_type+ column should be added. Defaults to false.
+      #   Whether an additional +_type+ column should be added. Defaults to false.
       #
       # ====== Create a user_id integer column
       #
@@ -777,7 +777,10 @@ module ActiveRecord
         execute schema_creation.accept(at)
       end
 
-      # Removes the given foreign key from the table.
+      # Removes the given foreign key from the table. Any option parameters provided
+      # will be used to re-add the foreign key in case of a migration rollback.
+      # It is recommended that you provide any options used when creating the foreign
+      # key so that the migration can be reverted properly.
       #
       # Removes the foreign key on +accounts.branch_id+.
       #
@@ -791,6 +794,7 @@ module ActiveRecord
       #
       #   remove_foreign_key :accounts, name: :special_fk_name
       #
+      # The +options+ hash accepts the same keys as SchemaStatements#add_foreign_key.
       def remove_foreign_key(from_table, options_or_to_table = {})
         return unless supports_foreign_keys?
 

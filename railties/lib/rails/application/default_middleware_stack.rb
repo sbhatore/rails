@@ -18,7 +18,7 @@ module Rails
           middleware.use ::Rack::Sendfile, config.action_dispatch.x_sendfile_header
 
           if config.serve_static_files
-            middleware.use ::ActionDispatch::Static, paths["public"].first, config.static_cache_control, config.static_index
+            middleware.use ::ActionDispatch::Static, paths["public"].first, config.static_cache_control, index: config.static_index
           end
 
           if rack_cache = load_rack_cache
@@ -28,7 +28,7 @@ module Rails
 
           middleware.use ::Rack::Lock unless allow_concurrency?
           middleware.use ::Rack::Runtime
-          middleware.use ::Rack::MethodOverride
+          middleware.use ::Rack::MethodOverride unless config.api_only
           middleware.use ::ActionDispatch::RequestId
 
           # Must come after Rack::MethodOverride to properly log overridden methods
@@ -42,9 +42,9 @@ module Rails
           end
 
           middleware.use ::ActionDispatch::Callbacks
-          middleware.use ::ActionDispatch::Cookies
+          middleware.use ::ActionDispatch::Cookies unless config.api_only
 
-          if config.session_store
+          if !config.api_only && config.session_store
             if config.force_ssl && !config.session_options.key?(:secure)
               config.session_options[:secure] = true
             end

@@ -46,7 +46,7 @@ module ActiveSupport
     #   tampered_message = signed_message.chop # editing the message invalidates the signature
     #   verifier.valid_message?(tampered_message) # => false
     def valid_message?(signed_message)
-      return if signed_message.blank?
+      return if signed_message.nil? || !signed_message.valid_encoding? || signed_message.blank?
 
       parts = signed_message.split(".")
       parts.all?(&:present?) && untampered?(parts.pop, parts.join("."))

@@ -151,14 +151,16 @@ module ActiveRecord
       end
 
       def invert_remove_index(args)
-        table, options = *args
-
-        unless options && options.is_a?(Hash) && options[:column]
-          raise ActiveRecord::IrreversibleMigration, "remove_index is only reversible if given a :column option."
+        table, options_or_column = *args
+        if (options = options_or_column).is_a?(Hash)
+          unless options[:column]
+            raise ActiveRecord::IrreversibleMigration, "remove_index is only reversible if given a :column option."
+          end
+          options = options.dup
+          [:add_index, [table, options.delete(:column), options]]
+        elsif (column = options_or_column).present?
+          [:add_index, [table, column]]
         end
-
-        options = options.dup
-        [:add_index, [table, options.delete(:column), options]]
       end
 
       alias :invert_add_belongs_to :invert_add_reference
@@ -182,6 +184,16 @@ module ActiveRecord
         end
 
         [:remove_foreign_key, [from_table, options]]
+      end
+
+      def invert_remove_foreign_key(args)
+        from_table, to_table, remove_options = args
+        raise ActiveRecord::IrreversibleMigration, "remove_foreign_key is only reversible if given a second table" if to_table.nil? || to_table.is_a?(Hash)
+
+        reversed_args = [from_table, to_table]
+        reversed_args << remove_options if remove_options
+
+        [:add_foreign_key, reversed_args]
       end
 
       # Forwards any missing method call to the \target.

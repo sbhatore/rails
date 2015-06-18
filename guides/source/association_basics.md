@@ -435,7 +435,7 @@ end
 
 The simplest rule of thumb is that you should set up a `has_many :through` relationship if you need to work with the relationship model as an independent entity. If you don't need to do anything with the relationship model, it may be simpler to set up a `has_and_belongs_to_many` relationship (though you'll need to remember to create the joining table in the database).
 
-You should use `has_many :through` if you need validations, callbacks, or extra attributes on the join model.
+You should use `has_many :through` if you need validations, callbacks or extra attributes on the join model.
 
 ### Polymorphic Associations
 
@@ -1467,7 +1467,14 @@ The `collection_singular_ids=` method makes the collection contain only the obje
 
 ##### `collection.clear`
 
-The `collection.clear` method removes every object from the collection. This destroys the associated objects if they are associated with `dependent: :destroy`, deletes them directly from the database if `dependent: :delete_all`, and otherwise sets their foreign keys to `NULL`.
+The `collection.clear` method removes all objects from the collection according to the strategy specified by the `dependent` option. If no option is given, it follows the default strategy. The default strategy for `has_many :through` associations is `delete_all`, and for `has_many` associations is to set the foreign keys to `NULL`.
+
+```ruby
+@customer.orders.clear
+```
+
+WARNING: Objects will be deleted if they're associated with `dependent: :destroy`,
+just like `dependent: :delete_all`.
 
 ##### `collection.empty?`
 
@@ -1506,7 +1513,7 @@ The `collection.where` method finds objects within the collection based on the c
 
 ##### `collection.exists?(...)`
 
-The `collection.exists?` method checks whether an object meeting the supplied 
+The `collection.exists?` method checks whether an object meeting the supplied
 conditions exists in the collection. It uses the same syntax and options as
 [`ActiveRecord::Base.exists?`](http://api.rubyonrails.org/classes/ActiveRecord/FinderMethods.html#method-i-exists-3F).
 

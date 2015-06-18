@@ -19,6 +19,7 @@ env:
     - "GEM=ar:sqlite3"
     - "GEM=ar:postgresql"
     - "GEM=aj:integration"
+    - "GEM=guides"
 rvm:
   - 2.2.2
   - ruby-head
@@ -50,6 +51,3 @@ services:
   - rabbitmq
 addons:
   postgresql: "9.3"
-  apt:
-    packages:
-      - sqlite3

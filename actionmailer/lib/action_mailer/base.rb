@@ -155,7 +155,7 @@ module ActionMailer
   # Note that <tt>deliver_later</tt> will execute your method from the background job.
   #
   # You never instantiate your mailer class. Rather, you just call the method you defined on the class itself.
-  # All instance method are expected to return a message object to be sent.
+  # All instance methods are expected to return a message object to be sent.
   #
   # = Multipart Emails
   #
@@ -413,6 +413,8 @@ module ActionMailer
   #
   # * <tt>deliveries</tt> - Keeps an array of all the emails sent out through the Action Mailer with
   #   <tt>delivery_method :test</tt>. Most useful for unit and functional testing.
+  #
+  # * <tt>deliver_later_queue_name</tt> - The name of the queue used with <tt>deliver_later</tt>
   class Base < AbstractController::Base
     include DeliveryMethods
     include Previews

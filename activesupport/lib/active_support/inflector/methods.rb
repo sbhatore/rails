@@ -68,9 +68,9 @@ module ActiveSupport
     def camelize(term, uppercase_first_letter = true)
       string = term.to_s
       if uppercase_first_letter
-        string = string.sub(/^[a-z\d]*/) { inflections.acronyms[$&] || $&.capitalize }
+        string = string.sub(/^[a-z\d]*/) { |match| inflections.acronyms[match] || match.capitalize }
       else
-        string = string.sub(/^(?:#{inflections.acronym_regex}(?=\b|[A-Z_])|\w)/) { $&.downcase }
+        string = string.sub(/^(?:#{inflections.acronym_regex}(?=\b|[A-Z_])|\w)/) { |match| match.downcase }
       end
       string.gsub!(/(?:_|(\/))([a-z\d]*)/i) { "#{$1}#{inflections.acronyms[$2] || $2.capitalize}" }
       string.gsub!('/'.freeze, '::'.freeze)
@@ -153,7 +153,7 @@ module ActiveSupport
     #   titleize('TheManWithoutAPast')       # => "The Man Without A Past"
     #   titleize('raiders_of_the_lost_ark')  # => "Raiders Of The Lost Ark"
     def titleize(word)
-      humanize(underscore(word)).gsub(/\b(?<!['’`])[a-z]/) { $&.capitalize }
+      humanize(underscore(word)).gsub(/\b(?<!['’`])[a-z]/) { |match| match.capitalize }
     end
 
     # Creates the name of a table like Rails does for models to table names.

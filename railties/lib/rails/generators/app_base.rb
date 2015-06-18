@@ -208,11 +208,13 @@ module Rails
         if options.dev?
           [
             GemfileEntry.path('rails', Rails::Generators::RAILS_DEV_PATH),
+            GemfileEntry.github('sprockets-rails', 'rails/sprockets-rails'),
             GemfileEntry.github('arel', 'rails/arel')
           ]
         elsif options.edge?
           [
             GemfileEntry.github('rails', 'rails/rails'),
+            GemfileEntry.github('sprockets-rails', 'rails/sprockets-rails'),
             GemfileEntry.github('arel', 'rails/arel')
           ]
         else
@@ -264,6 +266,8 @@ module Rails
       end
 
       def jbuilder_gemfile_entry
+        return [] if options[:api]
+
         comment = 'Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder'
         GemfileEntry.version('jbuilder', '~> 2.0', comment)
       end

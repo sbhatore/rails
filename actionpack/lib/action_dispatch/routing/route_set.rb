@@ -319,17 +319,23 @@ module ActionDispatch
       end
 
       def self.new_with_config(config)
+        route_set_config = DEFAULT_CONFIG
+
+        # engines apparently don't have this set
         if config.respond_to? :relative_url_root
-          new Config.new config.relative_url_root
-        else
-          # engines apparently don't have this set
-          new
+          route_set_config.relative_url_root = config.relative_url_root
         end
+
+        if config.respond_to? :api_only
+          route_set_config.api_only = config.api_only
+        end
+
+        new route_set_config
       end
 
-      Config = Struct.new :relative_url_root
+      Config = Struct.new :relative_url_root, :api_only
 
-      DEFAULT_CONFIG = Config.new(nil)
+      DEFAULT_CONFIG = Config.new(nil, false)
 
       def initialize(config = DEFAULT_CONFIG)
         self.named_routes = NamedRouteCollection.new
@@ -350,6 +356,10 @@ module ActionDispatch
 
       def relative_url_root
         @config.relative_url_root
+      end
+
+      def api_only?
+        @config.api_only
       end
 
       def request_class
@@ -511,10 +521,11 @@ module ActionDispatch
 
         path = conditions.delete :path_info
         ast  = conditions.delete :parsed_path_info
+        required_defaults  = conditions.delete :required_defaults
         path = build_path(path, ast, requirements, anchor)
-        conditions = build_conditions(conditions, path.names.map(&:to_sym))
+        conditions = build_conditions(conditions)
 
-        route = @set.add_route(app, path, conditions, defaults, name)
+        route = @set.add_route(app, path, conditions, required_defaults, defaults, name)
         named_routes[name] = route if name
         route
       end
@@ -550,7 +561,7 @@ module ActionDispatch
       end
       private :build_path
 
-      def build_conditions(current_conditions, path_values)
+      def build_conditions(current_conditions)
         conditions = current_conditions.dup
 
         # Rack-Mount requires that :request_method be a regular expression.
@@ -563,8 +574,7 @@ module ActionDispatch
         end
 
         conditions.keep_if do |k, _|
-          k == :action || k == :controller || k == :required_defaults ||
-            request_class.public_method_defined?(k) || path_values.include?(k)
+          request_class.public_method_defined?(k)
         end
       end
       private :build_conditions

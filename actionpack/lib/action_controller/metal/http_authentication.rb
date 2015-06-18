@@ -397,7 +397,7 @@ module ActionController
     #   RewriteRule ^(.*)$ dispatch.fcgi [E=X-HTTP_AUTHORIZATION:%{HTTP:Authorization},QSA,L]
     module Token
       TOKEN_KEY = 'token='
-      TOKEN_REGEX = /^Token /
+      TOKEN_REGEX = /^(Token|Bearer) /
       AUTHN_PAIR_DELIMITERS = /(?:,|;|\t+)/
       extend self
 
@@ -493,7 +493,7 @@ module ActionController
         "Token #{values * ", "}"
       end
 
-      # Sets a WWW-Authenticate to let the client know a token is desired.
+      # Sets a WWW-Authenticate header to let the client know a token is desired.
       #
       # controller - ActionController::Base instance for the outgoing response.
       # realm      - String realm to use in the header.

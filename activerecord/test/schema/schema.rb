@@ -100,6 +100,10 @@ ActiveRecord::Schema.define do
     t.column :status, :integer, default: 0
     t.column :read_status, :integer, default: 0
     t.column :nullable_status, :integer
+    t.column :language, :integer, default: 0
+    t.column :author_visibility, :integer, default: 0
+    t.column :illustrator_visibility, :integer, default: 0
+    t.column :font_size, :integer, default: 0
   end
 
   create_table :booleans, force: true do |t|
@@ -264,6 +268,11 @@ ActiveRecord::Schema.define do
     t.integer :breeder_id
     t.integer :dog_lover_id
     t.string  :alias
+  end
+
+  create_table :doubloons, force: true do |t|
+    t.integer :pirate_id
+    t.integer :weight
   end
 
   create_table :edges, force: true, id: false do |t|

@@ -1936,6 +1936,8 @@ as well as adding or subtracting their results from a Time object. For example:
 (4.months + 5.years).from_now
 ```
 
+NOTE: Defined in `active_support/core_ext/numeric/time.rb`
+
 ### Formatting
 
 Enables the formatting of numbers in a variety of ways.
@@ -2893,7 +2895,7 @@ The method `transform_values` accepts a block and returns a hash that has applie
 ```
 There's also the bang variant `transform_values!` that applies the block operations to values in the very receiver.
 
-NOTE: Defined in `active_support/core_text/hash/transform_values.rb`.
+NOTE: Defined in `active_support/core_ext/hash/transform_values.rb`.
 
 ### Slicing
 

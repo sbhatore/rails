@@ -110,7 +110,7 @@ module ActiveRecord
   #   <% 1.upto(1000) do |i| %>
   #   fix_<%= i %>:
   #     id: <%= i %>
-  #     name: guy_<%= 1 %>
+  #     name: guy_<%= i %>
   #   <% end %>
   #
   # This will create 1000 very simple fixtures.
@@ -615,7 +615,6 @@ module ActiveRecord
     # a list of rows to insert to that table.
     def table_rows
       now = config.default_timezone == :utc ? Time.now.utc : Time.now
-      now = now.to_s(:db)
 
       # allow a standard key to be used for doing defaults in YAML
       fixtures.delete('DEFAULTS')
@@ -669,7 +668,7 @@ module ActiveRecord
                   row[association.foreign_type] = $1
                 end
 
-                fk_type = association.active_record.type_for_attribute(fk_name).type
+                fk_type = reflection_class.type_for_attribute(fk_name).type
                 row[fk_name] = ActiveRecord::FixtureSet.identify(value, fk_type)
               end
             when :has_many

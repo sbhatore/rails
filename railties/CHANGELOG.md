@@ -1,3 +1,23 @@
+*   Remove ContentLength middleware from the defaults.  If you want it, just
+    add it as a middleware in your config.
+
+    *Egg McMuffin*
+
+*   Make it possible to customize the executable inside rerun snippets.
+
+    *Yves Senn*
+
+*   Add support for API only apps.
+    Middleware stack was slimmed down and it has only the needed
+    middleware for API apps & generators generates the right files,
+    folders and configurations.
+
+    *Santiago Pastorino & Jorge Bejar*
+
+*   Make generated scaffold functional tests work inside engines.
+
+    *Yuji Yaginuma*
+
 *   Generator a `.keep` file in the `tmp` folder by default as many scripts
     assume the existence of this folder and most would fail if it is absent.
 

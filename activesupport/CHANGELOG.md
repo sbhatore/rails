@@ -1,3 +1,7 @@
+*   Fix a range of values for parameters of the Time#change
+
+    *Nikolay Kondratyev*
+
 *   Add `Enumerable#pluck` to get the same values from arrays as from ActiveRecord
     associations.
 
@@ -10,7 +14,7 @@
 
     Before:
 
-        if (slack_url = Rails.application.secrets.slack_url).present?)
+        if (slack_url = Rails.application.secrets.slack_url).present?
           # Do something worthwhile
         else
           # Raise as important secret password is not specified

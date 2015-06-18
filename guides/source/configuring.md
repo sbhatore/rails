@@ -88,8 +88,6 @@ application. Accepts a valid week day symbol (e.g. `:monday`).
     end
     ```
 
-* `config.dependency_loading` is a flag that allows you to disable constant autoloading setting it to false. It only has effect if `config.cache_classes` is true, which it is by default in production mode.
-
 * `config.eager_load` when true, eager loads all registered `config.eager_load_namespaces`. This includes your application, engines, Rails frameworks and any other registered namespace.
 
 * `config.eager_load_namespaces` registers namespaces that are eager loaded when `config.eager_load` is true. All namespaces in the list must respond to the `eager_load!` method.
@@ -163,8 +161,6 @@ pipeline is enabled. It is set to true by default.
 
 * `config.assets.cache_store` defines the cache store that Sprockets will use. The default is the Rails file store.
 
-* `config.assets.version` is an option string that is used in MD5 hash generation. This can be changed to force all files to be recompiled.
-
 * `config.assets.compile` is a boolean that can be used to turn on live Sprockets compilation in production.
 
 * `config.assets.logger` accepts a logger conforming to the interface of Log4r or the default Ruby `Logger` class. Defaults to the same configured at `config.logger`. Setting `config.assets.logger` to false will turn off served assets logging.
@@ -190,7 +186,8 @@ The full set of methods that can be used in this block are as follows:
 * `javascript_engine` configures the engine to be used (for eg. coffee) when generating assets. Defaults to `:js`.
 * `orm` defines which orm to use. Defaults to `false` and will use Active Record by default.
 * `resource_controller` defines which generator to use for generating a controller when using `rails generate resource`. Defaults to `:controller`.
-* `resource_route` defines whether inject resource route definition in routes or not. Defaults to `true`.
+* `resource_route` defines whether a resource route definition should be generated
+  or not. Defaults to `true`.
 * `scaffold_controller` different from `resource_controller`, defines which generator to use for generating a _scaffolded_ controller when using `rails generate scaffold`. Defaults to `:scaffold_controller`.
 * `stylesheets` turns on the hook for stylesheets in generators. Used in Rails for when the `scaffold` generator is run, but this hook can be used in other generates as well. Defaults to `true`.
 * `stylesheet_engine` configures the stylesheet engine (for eg. sass) to be used when generating assets. Defaults to `:css`.
@@ -518,6 +515,9 @@ There are a number of settings available on `config.action_mailer`:
     ```ruby
     config.action_mailer.show_previews = false
     ```
+
+* `config.action_mailer.deliver_later_queue_name` specifies the queue name for
+  mailers. By default this is `mailers`.
 
 ### Configuring Active Support
 
