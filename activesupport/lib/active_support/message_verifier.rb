@@ -1,3 +1,4 @@
+require 'active_support/core_ext/hash/keys'
 require 'base64'
 require 'active_support/core_ext/object/blank'
 require 'active_support/security_utils'
@@ -49,7 +50,7 @@ module ActiveSupport
       return if signed_message.nil? || !signed_message.valid_encoding? || signed_message.blank?
 
       parts = signed_message.split(".")
-      parts.all?(&:present?) && untampered?(parts.pop, parts.join("."))
+      parts.size == 3 && parts.all?(&:present?) && untampered?(parts.pop, parts.join("."))
     end
 
     # Decodes the signed message using the +MessageVerifier+'s secret.
@@ -77,7 +78,7 @@ module ActiveSupport
       if valid_message?(signed_message)
         begin
           data = signed_message.split(".")[1]
-          @serializer.load decode(data)[0]
+          @serializer.load(decode(data)[0]).symbolize_keys
         rescue ArgumentError => argument_error
           return if argument_error.message =~ %r{invalid base64}
           raise

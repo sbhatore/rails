@@ -16,24 +16,37 @@ class MessageVerifierTest < ActiveSupport::TestCase
   end
 
   def setup
-    @verifier = ActiveSupport::MessageVerifier.new("Hey, I'm a secret!")
-    @data = { :some => "data", :now => Time.local(2010) }
+    @secret = "Hey, I'm a secret!"
+    @digest = "SHA1"
+    @serializer = Marshal
+    @verifier = ActiveSupport::MessageVerifier.new(@secret)
+    @options = { value: "data", expires: Time.local(2022), for: "test" }
+    @claims = ActiveSupport::Claims.new(@options)
   end
 
   def test_valid_message
-    data, hash = @verifier.generate(@data).split("--")
+    header, claims, digest = @verifier.generate(@options).split(".")
     assert !@verifier.valid_message?(nil)
     assert !@verifier.valid_message?("")
     assert !@verifier.valid_message?("\xff") # invalid encoding
-    assert !@verifier.valid_message?("#{data.reverse}--#{hash}")
-    assert !@verifier.valid_message?("#{data}--#{hash.reverse}")
+    assert !@verifier.valid_message?("#{header.reverse}.#{claims}.#{digest}")
+    assert !@verifier.valid_message?("#{header}.#{claims}.#{digest.reverse}")
+    assert !@verifier.valid_message?("#{header}.#{claims.reverse}.#{digest}")
     assert !@verifier.valid_message?("purejunk")
+    assert !@verifier.valid_message?("..")
+    assert !@verifier.valid_message?("pure.junk.data")
   end
 
   def test_simple_round_tripping
-    message = @verifier.generate(@data)
-    assert_equal @data, @verifier.verified(message)
-    assert_equal @data, @verifier.verify(message)
+    message = @verifier.generate(@options)
+    assert_equal @claims.to_h, @verifier.verified(message)
+    assert_equal @options[:value], @verifier.verify(message, for: "test")
+  end
+
+  def test_verify_legacy_message
+    data = { foo: "data", bar: Time.local(2022) }
+    legacy_message = generate_legacy(data)
+    assert_equal data, @verifier.verify(legacy_message)
   end
 
   def test_verified_returns_false_on_invalid_message
@@ -46,14 +59,28 @@ class MessageVerifierTest < ActiveSupport::TestCase
     end
   end
 
+  def test_verify_exception_on_invalid_purpose
+    assert_raise(ActiveSupport::Claims::InvalidClaims) do
+      @verifier.verify(@verifier.generate(@options), for: "different_purpose")
+    end
+  end
+
+  def test_verify_exception_on_invalid_expiry
+    expired_message = @verifier.generate({ value: "data", expires: Time.local(2010), for: "test" })
+    assert_raise(ActiveSupport::Claims::ExpiredClaims) do
+      @verifier.verify(expired_message, for: "test")
+    end
+  end
+
   def test_alternative_serialization_method
     prev = ActiveSupport.use_standard_json_time_format
     ActiveSupport.use_standard_json_time_format = true
-    verifier = ActiveSupport::MessageVerifier.new("Hey, I'm a secret!", :serializer => JSONSerializer.new)
-    message = verifier.generate({ :foo => 123, 'bar' => Time.utc(2010) })
-    exp = { "foo" => 123, "bar" => "2010-01-01T00:00:00.000Z" }
-    assert_equal exp, verifier.verified(message)
-    assert_equal exp, verifier.verify(message)
+    verifier = ActiveSupport::MessageVerifier.new("Hey, I'm a secret!", serializer: JSONSerializer.new)
+    options = { value: 123, expires: Time.utc(2022), for: "test" }
+    claims = ActiveSupport::Claims.new(options)
+    message = verifier.generate(options)
+    assert_equal claims.to_h, verifier.verified(message)
+    assert_equal options[:value], verifier.verify(message, for: "test")
   ensure
     ActiveSupport.use_standard_json_time_format = prev
   end
@@ -64,7 +91,7 @@ class MessageVerifierTest < ActiveSupport::TestCase
     #   AutoloadClass = Struct.new(:foo)
     #   valid_message = @verifier.generate(foo: AutoloadClass.new('foo'))
     #
-    valid_message = "BAh7BjoIZm9vbzonTWVzc2FnZVZlcmlmaWVyVGVzdDo6QXV0b2xvYWRDbGFzcwY6CUBmb29JIghmb28GOgZFVA==--f3ef39a5241c365083770566dc7a9eb5d6ace914"
+    valid_message = "BAh7B0kiCHR5cAY6BkVUSSIISldUBjsAVEkiCGFsZwY7AFRJIglTSEExBjsAVA==.BAh7B0kiCHBsZAY6BkVUewY6CGZvb1M6J01lc3NhZ2VWZXJpZmllclRlc3Q6OkF1dG9sb2FkQ2xhc3MGOwZJIghmb28GOwBUSSIIZm9yBjsAVEkiDnVuaXZlcnNhbAY7AFQ=.e4dc70628c1cab17012f22651c5bd9c722063a66"
     exception = assert_raise(ArgumentError, NameError) do
       @verifier.verified(valid_message)
     end
@@ -83,4 +110,19 @@ class MessageVerifierTest < ActiveSupport::TestCase
     end
     assert_equal exception.message, 'Secret should not be nil.'
   end
+
+  private
+    def generate_legacy(value)
+      data = encode(@serializer.dump(value))
+      "#{data}--#{generate_digest(data)}"
+    end
+
+    def encode(data)
+      ::Base64.strict_encode64(data)
+    end
+
+    def generate_digest(data)
+      require 'openssl' unless defined?(OpenSSL)
+      OpenSSL::HMAC.hexdigest(OpenSSL::Digest.const_get(@digest).new, @secret, data)
+    end
 end

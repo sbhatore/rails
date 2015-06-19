@@ -1,8 +1,10 @@
-module ActiveSupport
-  class InvalidClaims < StandardError; end
-  class ExpiredClaims < StandardError; end
-  
+require 'active_support/time'
+
+module ActiveSupport  
   class Claims
+    class InvalidClaims < StandardError; end
+    class ExpiredClaims < StandardError; end
+    
     attr_reader :payload, :purpose, :expires
 
     def initialize(options)
@@ -21,8 +23,8 @@ module ActiveSupport
       end
 
       def verify!(claims, options = {})
-        raise InvalidClaims if claims['for'] != pick_purpose(options)
-        claims['pld'] if parse_expiration(claims['exp'])
+        raise InvalidClaims if claims[:for] != pick_purpose(options)
+        claims[:pld] if parse_expiration(claims[:exp])
       end
 
       private
@@ -36,8 +38,8 @@ module ActiveSupport
     end
 
     def to_h
-      { 'pld' => @payload, 'for' => @purpose.to_s }.tap do |claims|
-        claims['exp'] = @expires.utc.iso8601(3) if @expires
+      { pld: @payload, for: @purpose.to_s }.tap do |claims|
+        claims[:exp] = @expires.utc.iso8601(3) if @expires
       end
     end
   end
