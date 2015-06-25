@@ -16,11 +16,9 @@ class MessageVerifierTest < ActiveSupport::TestCase
   end
 
   def setup
-    @secret = "Hey, I'm a secret!"
-    @digest = "SHA1"
-    @serializer = Marshal
+    @secret = 'Hey, I\'m a secret!'
     @verifier = ActiveSupport::MessageVerifier.new(@secret)
-    @options = { value: "data", expires: Time.local(2022), for: "test" }
+    @options = { value: 'data', expires: Time.local(2022), for: 'test' }
     @claims = ActiveSupport::Claims.new(@options)
   end
 
@@ -40,13 +38,13 @@ class MessageVerifierTest < ActiveSupport::TestCase
   def test_simple_round_tripping
     message = @verifier.generate(@options)
     assert_equal @claims.to_h, @verifier.verified(message)
-    assert_equal @options[:value], @verifier.verify(message, for: "test")
+    assert_equal @options[:value], @verifier.verify(message, for: 'test')
   end
 
   def test_verify_legacy_message
-    data = { foo: "data", bar: Time.local(2022) }
-    legacy_message = generate_legacy(data)
-    assert_equal data, @verifier.verify(legacy_message)
+    data = { foo: 'data', bar: Time.local(2022) }
+    legacy_verifier = ActiveSupport::LegacyMessageVerifier.new(@secret)
+    assert_equal data, @verifier.verify(legacy_verifier.generate(data))
   end
 
   def test_verified_returns_false_on_invalid_message
@@ -61,26 +59,26 @@ class MessageVerifierTest < ActiveSupport::TestCase
 
   def test_verify_exception_on_invalid_purpose
     assert_raise(ActiveSupport::Claims::InvalidClaims) do
-      @verifier.verify(@verifier.generate(@options), for: "different_purpose")
+      @verifier.verify(@verifier.generate(@options), for: 'different_purpose')
     end
   end
 
-  def test_verify_exception_on_invalid_expiry
-    expired_message = @verifier.generate({ value: "data", expires: Time.local(2010), for: "test" })
+  def test_verify_exception_on_message_expiry
+    expired_message = @verifier.generate(value: 'data', expires: Time.local(2010), for: 'test')
     assert_raise(ActiveSupport::Claims::ExpiredClaims) do
-      @verifier.verify(expired_message, for: "test")
+      @verifier.verify(expired_message, for: 'test')
     end
   end
 
   def test_alternative_serialization_method
     prev = ActiveSupport.use_standard_json_time_format
     ActiveSupport.use_standard_json_time_format = true
-    verifier = ActiveSupport::MessageVerifier.new("Hey, I'm a secret!", serializer: JSONSerializer.new)
-    options = { value: 123, expires: Time.utc(2022), for: "test" }
+    verifier = ActiveSupport::MessageVerifier.new(@secret, serializer: JSONSerializer.new)
+    options = { value: 123, expires: Time.local(2022), for: 'test' }
     claims = ActiveSupport::Claims.new(options)
     message = verifier.generate(options)
     assert_equal claims.to_h, verifier.verified(message)
-    assert_equal options[:value], verifier.verify(message, for: "test")
+    assert_equal options[:value], verifier.verify(message, for: 'test')
   ensure
     ActiveSupport.use_standard_json_time_format = prev
   end
@@ -110,19 +108,4 @@ class MessageVerifierTest < ActiveSupport::TestCase
     end
     assert_equal exception.message, 'Secret should not be nil.'
   end
-
-  private
-    def generate_legacy(value)
-      data = encode(@serializer.dump(value))
-      "#{data}--#{generate_digest(data)}"
-    end
-
-    def encode(data)
-      ::Base64.strict_encode64(data)
-    end
-
-    def generate_digest(data)
-      require 'openssl' unless defined?(OpenSSL)
-      OpenSSL::HMAC.hexdigest(OpenSSL::Digest.const_get(@digest).new, @secret, data)
-    end
 end

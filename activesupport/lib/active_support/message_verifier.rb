@@ -26,7 +26,6 @@ module ActiveSupport
   # hash upon initialization:
   #
   #   @verifier = ActiveSupport::MessageVerifier.new('s3Krit', serializer: YAML)
-
   class MessageVerifier
     class InvalidSignature < StandardError; end
 
@@ -49,8 +48,8 @@ module ActiveSupport
     def valid_message?(signed_message)
       return if signed_message.nil? || !signed_message.valid_encoding? || signed_message.blank?
 
-      parts = signed_message.split(".")
-      parts.size == 3 && parts.all?(&:present?) && untampered?(parts.pop, parts.join("."))
+      parts = signed_message.split('.')
+      parts.size == 3 && parts.all?(&:present?) && untampered?(parts.pop, parts.join('.'))
     end
 
     # Decodes the signed message using the +MessageVerifier+'s secret.
@@ -75,15 +74,13 @@ module ActiveSupport
     #   incompatible_message = "test--dad7b06c94abba8d46a15fafaef56c327665d5ff"
     #   verifier.verified(incompatible_message) # => TypeError: incompatible marshal file format
     def verified(signed_message)
-      if valid_message?(signed_message)
-        begin
-          data = signed_message.split(".")[1]
-          @serializer.load(decode(data)[0]).symbolize_keys
-        rescue ArgumentError => argument_error
-          return if argument_error.message =~ %r{invalid base64}
-          raise
-        end
-      end
+      return unless valid_message?(signed_message)
+      
+      data = signed_message.split('.')[1]
+      @serializer.load(decode(data)).symbolize_keys
+    rescue ArgumentError => argument_error
+      return if argument_error.message =~ %r{invalid base64}
+      raise
     end
 
     # Decodes the signed message using the +MessageVerifier+'s secret.
@@ -100,13 +97,13 @@ module ActiveSupport
     #   other_verifier.verify(signed_message) # => ActiveSupport::MessageVerifier::InvalidSignature
     def verify(signed_message, options = {})
       if signed_message.include? "--"
-        verifier = ActiveSupport::LegacyMessageVerifier.new(@secret, { :digest => @digest, :serializer => @serializer })
+        verifier = ActiveSupport::LegacyMessageVerifier.new(@secret, digest: @digest, serializer: @serializer)
         verifier.verify(signed_message)
       else
         if claims = verified(signed_message)
           Claims.verify!(claims, options)
         else
-          raise(InvalidSignature)
+          raise InvalidSignature
         end
       end
     end
@@ -121,7 +118,7 @@ module ActiveSupport
 
     def generate(options)
       @claims = Claims.new(options)
-      data = encode(encoded_header, encoded_claims).join('.')
+      data = [encode(serialized_header), encode(serialized_claims)].join('.')
       "#{data}.#{generate_digest(data)}"
     end
 
@@ -130,20 +127,20 @@ module ActiveSupport
         { 'typ' => 'JWT', 'alg' => @digest.to_s }
       end
 
-      def encoded_header
+      def serialized_header
         @serializer.dump header
       end
 
-      def encoded_claims
+      def serialized_claims
         @serializer.dump @claims.to_h
       end
 
-      def encode(*args)
-        args.map { |a| Base64.strict_encode64 a }
+      def encode(data)
+        ::Base64.strict_encode64(data)
       end
 
-      def decode(*args)
-        args.map { |a| Base64.strict_decode64 a }
+      def decode(data)
+        ::Base64.strict_decode64(data)
       end
 
       def untampered?(digest, data)
@@ -166,19 +163,22 @@ module ActiveSupport
       end
 
       def verified(signed_message)
-        if valid_message?(signed_message)
-          begin
-            data = signed_message.split("--")[0]
-            @serializer.load decode(data)[0]
-          rescue ArgumentError => argument_error
-            return if argument_error.message =~ %r{invalid base64}
-            raise
-          end
-        end
+        return unless valid_message?(signed_message)
+
+        data = signed_message.split("--").first
+        @serializer.load decode(data)
+      rescue ArgumentError => argument_error
+        return if argument_error.message =~ %r{invalid base64}
+        raise
       end
 
       def verify(signed_message)
         verified(signed_message) || raise(InvalidSignature)
+      end
+
+      def generate(value)
+        data = encode(@serializer.dump(value))
+        "#{data}--#{generate_digest(data)}"
       end
     end
 end

@@ -47,5 +47,10 @@ module ActiveSupport
         ActiveSupport.send(k, v) if ActiveSupport.respond_to? k
       end
     end
+
+    initializer "active_support.initialize_claims_expires_in" do |app|
+      require 'active_support/claims'
+      Claims.expires_in ||= 1.month
+    end
   end
 end
