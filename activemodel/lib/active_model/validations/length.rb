@@ -1,8 +1,6 @@
 require "active_support/core_ext/string/strip"
 
 module ActiveModel
-
-  # == Active \Model Length Validator
   module Validations
     class LengthValidator < EachValidator # :nodoc:
       MESSAGES  = { is: :wrong_length, minimum: :too_short, maximum: :too_long }.freeze
@@ -100,7 +98,7 @@ module ActiveModel
 
     module HelperMethods
 
-      # Validates that the specified attribute matches the length restrictions
+      # Validates that the specified attributes match the length restrictions
       # supplied. Only one option can be used at a time:
       #
       #   class Person < ActiveRecord::Base

@@ -71,6 +71,7 @@ module ActiveRecord
     #
     #   Person.sum(:age) # => 4562
     def sum(*args)
+      return super if block_given?
       calculate(:sum, *args)
     end
 

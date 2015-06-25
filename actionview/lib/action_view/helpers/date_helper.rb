@@ -68,6 +68,27 @@ module ActionView
       #   distance_of_time_in_words(from_time, to_time, include_seconds: true)                        # => about 6 years
       #   distance_of_time_in_words(to_time, from_time, include_seconds: true)                        # => about 6 years
       #   distance_of_time_in_words(Time.now, Time.now)                                               # => less than a minute
+      #
+      # With the <tt>scope</tt> option, you can define a custom scope for Rails
+      # to lookup the translation.
+      #
+      # For example you can define the following in your locale (e.g. en.yml).
+      #
+      #   datetime:
+      #     distance_in_words:
+      #       short:
+      #         about_x_hours:
+      #           one: 'an hour'
+      #           other: '%{count} hours'
+      #
+      # See https://github.com/svenfuchs/rails-i18n/blob/master/rails/locale/en.yml
+      # for more examples.
+      #
+      # Which will then result in the following:
+      #
+      #   from_time = Time.now
+      #   distance_of_time_in_words(from_time, from_time + 50.minutes, scope: 'datetime.distance_in_words.short') # => "an hour"
+      #   distance_of_time_in_words(from_time, from_time + 3.hours, scope: 'datetime.distance_in_words.short')    # => "3 hours"
       def distance_of_time_in_words(from_time, to_time = 0, options = {})
         options = {
           scope: :'datetime.distance_in_words'
@@ -464,7 +485,7 @@ module ActionView
       # The <tt>datetime</tt> can be either a +Time+ or +DateTime+ object or an integer.
       # Override the field name using the <tt>:field_name</tt> option, 'second' by default.
       #
-      #   my_time = Time.now + 16.minutes
+      #   my_time = Time.now + 16.seconds
       #
       #   # Generates a select field for seconds that defaults to the seconds for the time in my_time.
       #   select_second(my_time)

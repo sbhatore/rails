@@ -32,6 +32,7 @@ class TestUnitReporterTest < ActiveSupport::TestCase
     @reporter.record(passing_test)
     @reporter.record(skipped_test)
     @reporter.report
+    assert_no_match 'Failed tests:', @output.string
     assert_rerun_snippet_count 0
   end
 
@@ -47,7 +48,6 @@ class TestUnitReporterTest < ActiveSupport::TestCase
     original_executable = Rails::TestUnitReporter.executable
     begin
       Rails::TestUnitReporter.executable = "bin/test"
-      verbose = Rails::TestUnitReporter.new @output, verbose: true
       @reporter.record(failed_test)
       @reporter.report
 

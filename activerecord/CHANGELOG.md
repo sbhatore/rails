@@ -1,3 +1,35 @@
+*   Prevent error when using `force_reload: true` on an unassigned polymorphic
+    belongs_to association.
+
+    Fixes #20426.
+
+    *James Dabbs*
+
+*   Correctly raise `ActiveRecord::AssociationTypeMismatch` when assigning
+    a wrong type to a namespaced association.
+
+    Fixes #20545.
+
+    *Diego Carrion*
+
+*   `validates_absence_of` respects `marked_for_destruction?`.
+
+    Fixes #20449.
+
+    *Yves Senn*
+
+*   Include the `Enumerable` module in `ActiveRecord::Relation`
+
+    *Sean Griffin & bogdan*
+
+*   Use `Enumerable#sum` in `ActiveRecord::Relation` if a block is given.
+
+    *Sean Griffin*
+
+*   Let `WITH` queries (Common Table Expressions) be explainable.
+
+    *Vladimir Kochnev*
+
 *   Make `remove_index :table, :column` reversible.
 
     *Yves Senn*

@@ -10,13 +10,13 @@ module ActiveRecord
     #   end
     #
     #   class Book < ActiveRecord::Base
-    #     # columns: title, sales
+    #     # columns: title, sales, author_id
     #   end
     #
     # When you load an author with all associated books Active Record will make
     # multiple queries like this:
     #
-    #   Author.includes(:books).where(:name => ['bell hooks', 'Homer').to_a
+    #   Author.includes(:books).where(name: ['bell hooks', 'Homer']).to_a
     #
     #   => SELECT `authors`.* FROM `authors` WHERE `name` IN ('bell hooks', 'Homer')
     #   => SELECT `books`.* FROM `books` WHERE `author_id` IN (2, 5)
