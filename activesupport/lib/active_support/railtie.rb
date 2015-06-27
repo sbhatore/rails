@@ -48,9 +48,10 @@ module ActiveSupport
       end
     end
 
-    initializer "active_support.initialize_claims_expires_in" do |app|
+    initializer "active_support.set_claims_expiration" do |app|
       require 'active_support/claims'
-      Claims.expires_in ||= 1.month
+      app.config.active_support.claims_expiration ||= 1.month
+      Claims.expires_in = app.config.active_support.claims_expiration
     end
   end
 end

@@ -97,7 +97,7 @@ module ActiveSupport
     #   other_verifier.verify(signed_message) # => ActiveSupport::MessageVerifier::InvalidSignature
     def verify(signed_message, options = {})
       if signed_message.include? "--"
-        verifier = ActiveSupport::LegacyMessageVerifier.new(@secret, digest: @digest, serializer: @serializer)
+        verifier = LegacyMessageVerifier.new(@secret, digest: @digest, serializer: @serializer)
         verifier.verify(signed_message)
       else
         if claims = verified(signed_message)
@@ -117,7 +117,7 @@ module ActiveSupport
     #   verifier.generate 'a private message' # => "BAhJIhRwcml2YXRlLW1lc3NhZ2UGOgZFVA==--e2d724331ebdee96a10fb99b089508d1c72bd772"
 
     def generate(options)
-      @claims = Claims.new(options)
+      @claims = Claims.new(value: options[:value], **options)
       data = [encode(serialized_header), encode(serialized_claims)].join('.')
       "#{data}.#{generate_digest(data)}"
     end

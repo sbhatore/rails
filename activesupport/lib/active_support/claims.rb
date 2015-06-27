@@ -5,13 +5,13 @@ module ActiveSupport
     class InvalidClaims < StandardError; end
     class ExpiredClaims < StandardError; end
     
-    attr_reader :payload, :purpose, :expires
-    alias_method :expires_at, :expires
+    attr_reader :payload, :purpose, :expires_at
+    alias_method :expires, :expires_at
 
-    def initialize(options)
-      @payload = options.fetch(:value)
+    def initialize(value:, **options)
+      @payload = value
       @purpose = self.class.pick_purpose(options)
-      @expires = pick_expiration(options)
+      @expires_at = pick_expiration(options)
     end
 
     class << self
@@ -38,7 +38,7 @@ module ActiveSupport
 
     def to_h
       { pld: @payload, for: @purpose.to_s }.tap do |claims|
-        claims[:exp] = @expires.utc.iso8601(3) if @expires
+        claims[:exp] = @expires_at.utc.iso8601(3) if @expires_at
       end
     end
 
@@ -48,7 +48,8 @@ module ActiveSupport
 
     private
       def pick_expiration(options)
-        return options[:expires] || options[:expires_at] if options.key?(:expires) || options.key?(:expires_at)
+        return options[:expires_at] if options.key?(:expires_at)
+        return options[:expires] if options.key?(:expires)
 
         if expires_in = options.fetch(:expires_in) { self.class.expires_in }
           expires_in.from_now
