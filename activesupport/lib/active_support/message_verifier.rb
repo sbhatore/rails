@@ -12,7 +12,7 @@ module ActiveSupport
   # where the session store isn't suitable or available.
   #
   # Remember Me:
-  #   cookies[:remember_me] = @verifier.generate(value: @user.id, expires: 2.weeks.from_now, for: 'remember_me')
+  #   cookies[:remember_me] = @verifier.generate(value: @user.id, expires_at: 2.weeks.from_now, for: 'remember_me')
   #
   # In the authentication filter:
   #
@@ -54,7 +54,7 @@ module ActiveSupport
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
     #
-    #   signed_message = verifier.generate(value: 'a private message', for: 'test', expires: 1.day.from_now)
+    #   signed_message = verifier.generate(value: 'a private message', for: 'test', expires_at: 1.day.from_now)
     #   verifier.verified(signed_message)
     #   # => {:pld=>"a private message", :for=>"test", :exp=>"2015-06-29T07:16:12.579Z"}
     #
@@ -85,7 +85,7 @@ module ActiveSupport
     # Decodes the signed message and legacy signed message using the +MessageVerifier+'s secret.
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
-    #   signed_message = verifier.generate(value: 'a private message', for: 'test', expires: 1.day.from_now)
+    #   signed_message = verifier.generate(value: 'a private message', for: 'test', expires_in: 1.day)
     #
     #   verifier.verify(signed_message, for: 'test') # => "a private message"
     #
@@ -103,7 +103,7 @@ module ActiveSupport
     #   verifier.verify(signed_message, for: 'something_else') # => ActiveSupport::Claims::InvalidClaims
     #
     # Raises +ExpiredClaims+ if the message is expired.
-    #   expired_message = verifier.generate(value: 'a private message', expires: 1.day.ago)
+    #   expired_message = verifier.generate(value: 'a private message', expires_at: 1.day.ago)
     #   verifier.verify(signed_message) # => ActiveSupport::Claims::ExpiredClaims
     def verify(signed_message, options = {})
       if signed_message.include? "--"
@@ -119,14 +119,13 @@ module ActiveSupport
     end
 
     # Generates a signed message for the given +options+ hash.
-    # Choose one among +:expires+, +:expires_at+ and +:expires_in+
+    # Choose one between +:expires_at+ and +:expires_in+
     # to set the expiry of the message.
     #
     # ==== Options
     #
     # * <tt>:value</tt> - Payload of the message.
     # * <tt>:expires_at</tt> - Expiry time of the signed message.
-    # * <tt>:expires</tt> - Same as +:expires_at+.
     # * <tt>:expires_in</tt> - Time from now after which the message
     #   will expire (e.g. 1.month).
     # * <tt>:for</tt> - Purpose of the message (defaults to 'universal').

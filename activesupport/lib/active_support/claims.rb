@@ -9,7 +9,6 @@ module ActiveSupport
     class ExpiredClaims < StandardError; end
     
     attr_reader :payload, :purpose, :expires_at
-    alias_method :expires, :expires_at
 
     # Keyword argument +:value+ is mandatory
     def initialize(value:, **options)

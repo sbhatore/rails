@@ -18,7 +18,7 @@ class MessageVerifierTest < ActiveSupport::TestCase
   def setup
     @secret = 'Hey, I\'m a secret!'
     @verifier = ActiveSupport::MessageVerifier.new(@secret)
-    @options = { value: 'data', expires: Time.local(2022), for: 'test' }
+    @options = { value: 'data', expires_at: Time.local(2022), for: 'test' }
     @value = @options[:value]
     @claims = ActiveSupport::Claims.new(value: @value, **@options)
   end
@@ -71,7 +71,7 @@ class MessageVerifierTest < ActiveSupport::TestCase
   end
 
   def test_verify_exception_on_message_expiry
-    expired_message = @verifier.generate(value: 'data', expires: Time.local(2010), for: 'test')
+    expired_message = @verifier.generate(value: 'data', expires_at: Time.local(2010), for: 'test')
     assert_raise(ActiveSupport::Claims::ExpiredClaims) do
       @verifier.verify(expired_message, for: 'test')
     end
@@ -81,7 +81,7 @@ class MessageVerifierTest < ActiveSupport::TestCase
     prev = ActiveSupport.use_standard_json_time_format
     ActiveSupport.use_standard_json_time_format = true
     verifier = ActiveSupport::MessageVerifier.new(@secret, serializer: JSONSerializer.new)
-    options = { value: 123, expires: Time.local(2022), for: 'test' }
+    options = { value: 123, expires_at: Time.local(2022), for: 'test' }
     claims = ActiveSupport::Claims.new(value: options[:value], **options)
     message = verifier.generate(options)
     assert_equal claims.to_h, verifier.verified(message)
@@ -94,9 +94,9 @@ class MessageVerifierTest < ActiveSupport::TestCase
     # To generate the valid message below:
     #
     #   AutoloadClass = Struct.new(:foo)
-    #   valid_message = @verifier.generate(value: AutoloadClass.new('foo'))
+    #   valid_message = @verifier.generate(value: { foo: AutoloadClass.new('foo') })
     #
-    valid_message = "BAh7B0kiCHR5cAY6BkVUSSIISldUBjsAVEkiCGFsZwY7AFRJIglTSEExBjsAVA==.BAh7CDoIcGxkUzonTWVzc2FnZVZlcmlmaWVyVGVzdDo6QXV0b2xvYWRDbGFzcwY6CGZvb0kiCGZvbwY6BkVUOghmb3JJIg51bml2ZXJzYWwGOwhUOghleHBJIh0yMDE1LTA3LTI4VDEyOjE0OjIyLjkzNVoGOwhU.ZGNkNWIwNzRhOWFjNDQyMmM0ODMzMjVmMDRhZWQyN2E4YTE2MThkZg=="
+    valid_message = "BAh7B0kiCHR5cAY6BkVUSSIISldUBjsAVEkiCGFsZwY7AFRJIglTSEExBjsAVA==.BAh7CDoIcGxkewY6CGZvb1M6J01lc3NhZ2VWZXJpZmllclRlc3Q6OkF1dG9sb2FkQ2xhc3MGOwZJIghmb28GOgZFVDoIZm9ySSIOdW5pdmVyc2FsBjsIVDoIZXhwSSIdMjAxNS0wNy0yOFQxODozODoxNi41NjNaBjsIVA==.MzE2YWY4NWQxZWZlYzEzOTRjYmNhOWM0YjU1ODAzYjQ1N2U3Y2JmOA=="
     exception = assert_raise(ArgumentError, NameError) do
       @verifier.verified(valid_message)
     end
