@@ -1,6 +1,9 @@
 require 'active_support/time'
 
-module ActiveSupport  
+module ActiveSupport
+  # +Claims+ supports <tt>ActiveSupport::MessageVerifier</tt> by
+  # representation of message in the form JWT Claims and verifying
+  # the claims of the signed message. 
   class Claims
     class InvalidClaims < StandardError; end
     class ExpiredClaims < StandardError; end
@@ -8,6 +11,7 @@ module ActiveSupport
     attr_reader :payload, :purpose, :expires_at
     alias_method :expires, :expires_at
 
+    # Keyword argument +:value+ is mandatory
     def initialize(value:, **options)
       @payload = value
       @purpose = self.class.pick_purpose(options)
@@ -51,6 +55,8 @@ module ActiveSupport
         return options[:expires_at] if options.key?(:expires_at)
         return options[:expires] if options.key?(:expires)
 
+        # Expiration defaults to 1 month through class level
+        # variable +:expires_in+ set in railtie.
         if expires_in = options.fetch(:expires_in) { self.class.expires_in }
           expires_in.from_now
         end

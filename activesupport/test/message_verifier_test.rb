@@ -42,6 +42,12 @@ class MessageVerifierTest < ActiveSupport::TestCase
     assert_equal @value, @verifier.verify(message, for: 'test')
   end
 
+  def test_when_value_is_nil
+    message = @verifier.generate(value: nil)
+    assert message
+    assert @verifier.verify(message).nil?
+  end
+
   def test_verify_legacy_message
     data = { foo: 'data', bar: Time.local(2022) }
     legacy_verifier = ActiveSupport::LegacyMessageVerifier.new(@secret)
@@ -88,9 +94,9 @@ class MessageVerifierTest < ActiveSupport::TestCase
     # To generate the valid message below:
     #
     #   AutoloadClass = Struct.new(:foo)
-    #   valid_message = @verifier.generate(foo: AutoloadClass.new('foo'))
+    #   valid_message = @verifier.generate(value: AutoloadClass.new('foo'))
     #
-    valid_message = "BAh7B0kiCHR5cAY6BkVUSSIISldUBjsAVEkiCGFsZwY7AFRJIglTSEExBjsAVA==.BAh7B0kiCHBsZAY6BkVUewY6CGZvb1M6J01lc3NhZ2VWZXJpZmllclRlc3Q6OkF1dG9sb2FkQ2xhc3MGOwZJIghmb28GOwBUSSIIZm9yBjsAVEkiDnVuaXZlcnNhbAY7AFQ=.e4dc70628c1cab17012f22651c5bd9c722063a66"
+    valid_message = "BAh7B0kiCHR5cAY6BkVUSSIISldUBjsAVEkiCGFsZwY7AFRJIglTSEExBjsAVA==.BAh7CDoIcGxkUzonTWVzc2FnZVZlcmlmaWVyVGVzdDo6QXV0b2xvYWRDbGFzcwY6CGZvb0kiCGZvbwY6BkVUOghmb3JJIg51bml2ZXJzYWwGOwhUOghleHBJIh0yMDE1LTA3LTI4VDEyOjE0OjIyLjkzNVoGOwhU.ZGNkNWIwNzRhOWFjNDQyMmM0ODMzMjVmMDRhZWQyN2E4YTE2MThkZg=="
     exception = assert_raise(ArgumentError, NameError) do
       @verifier.verified(valid_message)
     end
