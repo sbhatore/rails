@@ -10,9 +10,9 @@ module ActiveSupport
     
     attr_reader :payload, :purpose, :expires_at
 
-    # Keyword argument +:value+ is mandatory
-    def initialize(value:, **options)
-      @payload = value
+    # Keyword argument +:payload+ is mandatory
+    def initialize(payload:, **options)
+      @payload = payload
       @purpose = self.class.pick_purpose(options)
       @expires_at = pick_expiration(options)
     end
@@ -52,7 +52,6 @@ module ActiveSupport
     private
       def pick_expiration(options)
         return options[:expires_at] if options.key?(:expires_at)
-        return options[:expires] if options.key?(:expires)
 
         # Expiration defaults to 1 month through class level
         # variable +:expires_in+ set in railtie.

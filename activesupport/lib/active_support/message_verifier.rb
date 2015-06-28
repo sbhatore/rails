@@ -12,7 +12,7 @@ module ActiveSupport
   # where the session store isn't suitable or available.
   #
   # Remember Me:
-  #   cookies[:remember_me] = @verifier.generate(value: @user.id, expires_at: 2.weeks.from_now, for: 'remember_me')
+  #   cookies[:remember_me] = @verifier.generate(@user.id, expires_at: 2.weeks.from_now, for: 'remember_me')
   #
   # In the authentication filter:
   #
@@ -54,7 +54,7 @@ module ActiveSupport
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
     #
-    #   signed_message = verifier.generate(value: 'a private message', for: 'test', expires_at: 1.day.from_now)
+    #   signed_message = verifier.generate('a private message', for: 'test', expires_at: 1.day.from_now)
     #   verifier.verified(signed_message)
     #   # => {:pld=>"a private message", :for=>"test", :exp=>"2015-06-29T07:16:12.579Z"}
     #
@@ -85,7 +85,7 @@ module ActiveSupport
     # Decodes the signed message and legacy signed message using the +MessageVerifier+'s secret.
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
-    #   signed_message = verifier.generate(value: 'a private message', for: 'test', expires_in: 1.day)
+    #   signed_message = verifier.generate('a private message', for: 'test', expires_in: 1.day)
     #
     #   verifier.verify(signed_message, for: 'test') # => "a private message"
     #
@@ -103,7 +103,7 @@ module ActiveSupport
     #   verifier.verify(signed_message, for: 'something_else') # => ActiveSupport::Claims::InvalidClaims
     #
     # Raises +ExpiredClaims+ if the message is expired.
-    #   expired_message = verifier.generate(value: 'a private message', expires_at: 1.day.ago)
+    #   expired_message = verifier.generate('a private message', expires_at: 1.day.ago)
     #   verifier.verify(signed_message) # => ActiveSupport::Claims::ExpiredClaims
     def verify(signed_message, options = {})
       if signed_message.include? "--"
@@ -118,17 +118,16 @@ module ActiveSupport
       end
     end
 
-    # Generates a signed message for the given +options+ hash.
-    # Choose one between +:expires_at+ and +:expires_in+
-    # to set the expiry of the message.
+    # Generates a signed message for the given +value+ and
+    # +options+ hash. Choose one between +:expires_at+ and 
+    # +:expires_in+ to set the expiry of the message.
     #
     # ==== Options
     #
-    # * <tt>:value</tt> - Payload of the message.
     # * <tt>:expires_at</tt> - Expiry time of the signed message.
     # * <tt>:expires_in</tt> - Time from now after which the message
     #   will expire (e.g. 1.month).
-    # * <tt>:for</tt> - Purpose of the message (defaults to 'universal').
+    # * <tt>:for</tt> - Purpose/Scope of the message (defaults to 'universal').
     #
     # The message is signed with the +MessageVerifier+'s secret. Without knowing
     # the secret, the original value cannot be extracted from the message. The
@@ -136,10 +135,10 @@ module ActiveSupport
     # <base64-encoded header>.<base64-encoded claims>.<base64-encoded signature>
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
-    #   verifier.generate(value: 'a private message')
+    #   verifier.generate('a private message')
     #   # => "BAh7B0kiCHR5cAY6BkVUSSIISldUBjsAVEkiCGFsZwY7AFRJIglTSEExBjsAVA==.BAh7CDoIcGxkSSIWYSBwcml2YXRlIG1lc3NhZ2UGOgZFVDoIZm9ySSIOdW5pdmVyc2FsBjsGVDoIZXhwSSIdMjAxNS0wNy0yOFQxMjoxNjo0MC43OTJaBjsGVA==.MzZlYmE0ZTJjZDYyZmJiNjgyZDQxMjI4MTBkYTNkNzVhZWZmODFiZQ=="
-    def generate(options)
-      @claims = Claims.new(value: options[:value], **options)
+    def generate(value, options = {})
+      @claims = Claims.new(payload: value, **options)
       data = [encode(serialized_header), encode(serialized_claims)].join('.')
       "#{data}.#{encode(generate_digest(data))}"
     end

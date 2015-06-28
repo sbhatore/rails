@@ -18,13 +18,13 @@ class MessageVerifierTest < ActiveSupport::TestCase
   def setup
     @secret = 'Hey, I\'m a secret!'
     @verifier = ActiveSupport::MessageVerifier.new(@secret)
-    @options = { value: 'data', expires_at: Time.local(2022), for: 'test' }
-    @value = @options[:value]
-    @claims = ActiveSupport::Claims.new(value: @value, **@options)
+    @value = 'data'
+    @options = { expires_at: Time.local(2022), for: 'test' }
+    @claims = ActiveSupport::Claims.new(payload: @value, **@options)
   end
 
   def test_valid_message
-    header, claims, digest = @verifier.generate(@options).split(".")
+    header, claims, digest = @verifier.generate(@value, @options).split(".")
     assert !@verifier.valid_message?(nil)
     assert !@verifier.valid_message?("")
     assert !@verifier.valid_message?("\xff") # invalid encoding
@@ -37,13 +37,13 @@ class MessageVerifierTest < ActiveSupport::TestCase
   end
 
   def test_simple_round_tripping
-    message = @verifier.generate(@options)
+    message = @verifier.generate(@value, @options)
     assert_equal @claims.to_h, @verifier.verified(message)
     assert_equal @value, @verifier.verify(message, for: 'test')
   end
 
   def test_when_value_is_nil
-    message = @verifier.generate(value: nil)
+    message = @verifier.generate(nil)
     assert message
     assert @verifier.verify(message).nil?
   end
@@ -71,7 +71,7 @@ class MessageVerifierTest < ActiveSupport::TestCase
   end
 
   def test_verify_exception_on_message_expiry
-    expired_message = @verifier.generate(value: 'data', expires_at: Time.local(2010), for: 'test')
+    expired_message = @verifier.generate(@value, expires_at: Time.local(2010), for: 'test')
     assert_raise(ActiveSupport::Claims::ExpiredClaims) do
       @verifier.verify(expired_message, for: 'test')
     end
@@ -81,11 +81,12 @@ class MessageVerifierTest < ActiveSupport::TestCase
     prev = ActiveSupport.use_standard_json_time_format
     ActiveSupport.use_standard_json_time_format = true
     verifier = ActiveSupport::MessageVerifier.new(@secret, serializer: JSONSerializer.new)
-    options = { value: 123, expires_at: Time.local(2022), for: 'test' }
-    claims = ActiveSupport::Claims.new(value: options[:value], **options)
-    message = verifier.generate(options)
+    value = 123
+    options = { expires_at: Time.local(2022), for: 'test' }
+    claims = ActiveSupport::Claims.new(payload: value, **options)
+    message = verifier.generate(value, options)
     assert_equal claims.to_h, verifier.verified(message)
-    assert_equal options[:value], verifier.verify(message, for: 'test')
+    assert_equal value, verifier.verify(message, for: 'test')
   ensure
     ActiveSupport.use_standard_json_time_format = prev
   end
@@ -94,7 +95,7 @@ class MessageVerifierTest < ActiveSupport::TestCase
     # To generate the valid message below:
     #
     #   AutoloadClass = Struct.new(:foo)
-    #   valid_message = @verifier.generate(value: { foo: AutoloadClass.new('foo') })
+    #   valid_message = @verifier.generate({ foo: AutoloadClass.new('foo') })
     #
     valid_message = "BAh7B0kiCHR5cAY6BkVUSSIISldUBjsAVEkiCGFsZwY7AFRJIglTSEExBjsAVA==.BAh7CDoIcGxkewY6CGZvb1M6J01lc3NhZ2VWZXJpZmllclRlc3Q6OkF1dG9sb2FkQ2xhc3MGOwZJIghmb28GOgZFVDoIZm9ySSIOdW5pdmVyc2FsBjsIVDoIZXhwSSIdMjAxNS0wNy0yOFQxODozODoxNi41NjNaBjsIVA==.MzE2YWY4NWQxZWZlYzEzOTRjYmNhOWM0YjU1ODAzYjQ1N2U3Y2JmOA=="
     exception = assert_raise(ArgumentError, NameError) do

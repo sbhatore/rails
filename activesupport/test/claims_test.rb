@@ -4,7 +4,7 @@ require 'active_support/time'
 class ClaimsTest < ActiveSupport::TestCase
   def setup
     @value = 'payload'
-    @claims = ActiveSupport::Claims.new(value: @value, for: 'test', expires_at: Time.utc(2022))
+    @claims = ActiveSupport::Claims.new(payload: @value, for: 'test', expires_at: Time.utc(2022))
   end
 
   def test_to_hash
@@ -17,7 +17,7 @@ class ClaimsTest < ActiveSupport::TestCase
   end
 
   def test_verify_returns_value_with_default_claims
-    claims = ActiveSupport::Claims.new(value: @value)
+    claims = ActiveSupport::Claims.new(payload: @value)
     assert_equal @value, ActiveSupport::Claims.verify!(claims.to_h)
   end
 end
@@ -25,11 +25,11 @@ end
 class ClaimsPurposeTest < ActiveSupport::TestCase
   def setup
     @value = 'payload'
-    @claims = ActiveSupport::Claims.new(value: @value, for: 'test')
+    @claims = ActiveSupport::Claims.new(payload: @value, for: 'test')
   end
 
   def test_default_purpose_without_for
-    assert_equal 'universal', ActiveSupport::Claims.new(value: @value).purpose
+    assert_equal 'universal', ActiveSupport::Claims.new(payload: @value).purpose
   end
 
   def test_verify_exception_on_invalid_purpose
@@ -39,9 +39,9 @@ class ClaimsPurposeTest < ActiveSupport::TestCase
   end
 
   def test_equal_only_with_same_purpose
-    assert_equal @claims, ActiveSupport::Claims.new(value: @value, for: 'test')
-    refute_equal @claims, ActiveSupport::Claims.new(value: @value, for: 'login')
-    refute_equal @claims, ActiveSupport::Claims.new(value: @value)
+    assert_equal @claims, ActiveSupport::Claims.new(payload: @value, for: 'test')
+    refute_equal @claims, ActiveSupport::Claims.new(payload: @value, for: 'login')
+    refute_equal @claims, ActiveSupport::Claims.new(payload: @value)
   end
 end
 
@@ -98,7 +98,7 @@ class ClaimsExpirationTest < ActiveSupport::TestCase
 
   test 'passing expires_at sets expiration date' do
     date = Date.today.end_of_day
-    claims = ActiveSupport::Claims.new(value: @value, expires_at: date)
+    claims = ActiveSupport::Claims.new(payload: @value, expires_at: date)
 
     assert_equal date, claims.expires_at
 
@@ -118,7 +118,7 @@ class ClaimsExpirationTest < ActiveSupport::TestCase
   test 'passing expires_at overrides class level expires_in' do
     with_expiration_in 1.hour do
       date = Date.tomorrow.end_of_day
-      claims = ActiveSupport::Claims.new(value: @value, expires_at: date)
+      claims = ActiveSupport::Claims.new(payload: @value, expires_at: date)
 
       assert_equal date, claims.expires_at
 
@@ -149,6 +149,6 @@ class ClaimsExpirationTest < ActiveSupport::TestCase
     end
 
     def encode_claims(options = {})
-      ActiveSupport::Claims.new(value: @value, **options).to_h
+      ActiveSupport::Claims.new(payload: @value, **options).to_h
     end
 end
