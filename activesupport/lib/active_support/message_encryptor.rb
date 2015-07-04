@@ -47,61 +47,89 @@ module ActiveSupport
       sign_secret = signature_key_or_options.first
       @secret = secret
       @sign_secret = sign_secret
-      @cipher = options[:cipher] || 'aes-256-cbc'
-      @verifier = MessageVerifier.new(@sign_secret || @secret, digest: options[:digest] || 'SHA1', serializer: NullSerializer)
+      @alg = "dir"
+      @enc = options[:enc] || "aes-256-gcm"
+      @verifier = MessageVerifier.new(@sign_secret || @secret, digest: options[:digest] || 'SHA1', serializer: options[:serializer] || Marshal)
       @serializer = options[:serializer] || Marshal
     end
 
     # Encrypt and sign a message. We need to sign the message in order to avoid
     # padding attacks. Reference: http://www.limited-entropy.com/padding-oracle-attacks.
-    def encrypt_and_sign(value)
-      verifier.generate(_encrypt(value))
+    def encrypt_and_sign(value, options = {})
+      @verifier.generate(_encrypt(value), options)
     end
 
     # Decrypt and verify a message. We need to verify the message in order to
     # avoid padding attacks. Reference: http://www.limited-entropy.com/padding-oracle-attacks.
-    def decrypt_and_verify(value)
-      _decrypt(verifier.verify(value))
+    def decrypt_and_verify(value, options = {})
+      _decrypt(@verifier.verify(value, options))
     end
 
     private
+      def _encrypt(value)
+        protected_header = serialize header
+        encryption_key = "\0"*32 # Content Encryption Key, CEK
+        aad = to_ascii protected_header # Additional Authenticated Data
 
-    def _encrypt(value)
-      cipher = new_cipher
-      cipher.encrypt
-      cipher.key = @secret
+        auth_cipher =  OpenSSL::Cipher::Cipher.new(@enc)
+        auth_cipher.encrypt
+        auth_cipher.key = encryption_key
+        iv = auth_cipher.random_iv
+        auth_cipher.iv = iv
+        auth_cipher.auth_data = aad
 
-      # Rely on OpenSSL for the initialization vector
-      iv = cipher.random_iv
+        ciphertext = auth_cipher.update(serialize(value))
+        ciphertext << auth_cipher.final
+        auth_tag = auth_cipher.auth_tag
 
-      encrypted_data = cipher.update(@serializer.dump(value))
-      encrypted_data << cipher.final
+        ([protected_header, encryption_key, iv, ciphertext, auth_tag].map { |a| encode a }).join('.')
+      end
 
-      "#{::Base64.strict_encode64 encrypted_data}--#{::Base64.strict_encode64 iv}"
-    end
+      def _decrypt(encrypted_message)
+        header, encrypted_key, iv, ciphertext, auth_tag = encrypted_message.split('.').map { |a| decode a }
+        return unless valid_header?(deserialize(header))
+        aad = to_ascii header # Additional Authenticated Data
 
-    def _decrypt(encrypted_message)
-      cipher = new_cipher
-      encrypted_data, iv = encrypted_message.split("--").map {|v| ::Base64.strict_decode64(v)}
+        auth_decipher = OpenSSL::Cipher::Cipher.new(@enc)
+        auth_decipher.decrypt
+        auth_decipher.key = encrypted_key
+        auth_decipher.iv = iv
+        auth_decipher.auth_tag = auth_tag
+        auth_decipher.auth_data = aad
 
-      cipher.decrypt
-      cipher.key = @secret
-      cipher.iv  = iv
+        decrypted_message = auth_decipher.update(ciphertext) + auth_decipher.final
 
-      decrypted_data = cipher.update(encrypted_data)
-      decrypted_data << cipher.final
+        @serializer.load decrypted_message
+      rescue OpenSSLCipherError, TypeError, ArgumentError
+        raise InvalidMessage
+      end
 
-      @serializer.load(decrypted_data)
-    rescue OpenSSLCipherError, TypeError, ArgumentError
-      raise InvalidMessage
-    end
+      def header
+        { 'typ' => 'JWE + JWS', 'alg' => @alg.to_s, 'enc' => @enc.to_s }
+      end
 
-    def new_cipher
-      OpenSSL::Cipher::Cipher.new(@cipher)
-    end
+      def valid_header?(header)
+        header.is_a? Hash
+      end
 
-    def verifier
-      @verifier
-    end
+      def to_ascii(value)
+        value.split('').map(&:ord).to_s
+      end
+
+      def serialize(value)
+        @serializer.dump value
+      end
+
+      def deserialize(value)
+        @serializer.load value
+      end
+
+      def encode(data)
+        ::Base64.strict_encode64(data)
+      end
+
+      def decode(data)
+        ::Base64.strict_decode64(data)
+      end
   end
 end

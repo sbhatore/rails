@@ -1,6 +1,8 @@
+require 'active_support/core_ext/hash/keys'
 require 'base64'
 require 'active_support/core_ext/object/blank'
 require 'active_support/security_utils'
+require 'active_support/claims'
 
 module ActiveSupport
   # +MessageVerifier+ makes it easy to generate and verify messages which are
@@ -10,14 +12,12 @@ module ActiveSupport
   # where the session store isn't suitable or available.
   #
   # Remember Me:
-  #   cookies[:remember_me] = @verifier.generate([@user.id, 2.weeks.from_now])
+  #   cookies[:remember_me] = @verifier.generate(@user.id, expires_at: 2.weeks.from_now, for: 'remember_me')
   #
   # In the authentication filter:
   #
-  #   id, time = @verifier.verify(cookies[:remember_me])
-  #   if time < Time.now
-  #     self.current_user = User.find(id)
-  #   end
+  #   id = @verifier.verify(cookies[:remember_me], for: 'remember_me')
+  #   self.current_user = User.find(id) if id
   #
   # By default it uses Marshal to serialize the message. If you want to use
   # another serialization method, you can set the serializer in the options
@@ -46,16 +46,17 @@ module ActiveSupport
     def valid_message?(signed_message)
       return if signed_message.nil? || !signed_message.valid_encoding? || signed_message.blank?
 
-      data, digest = signed_message.split("--")
-      data.present? && digest.present? && ActiveSupport::SecurityUtils.secure_compare(digest, generate_digest(data))
+      parts = signed_message.split('.')
+      parts.size == 3 && parts.all?(&:present?) && untampered?(parts.pop, parts.join('.'))
     end
 
-    # Decodes the signed message using the +MessageVerifier+'s secret.
+    # Decodes the signed message using the +MessageVerifier+'s secret and returns the claims hash.
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
     #
-    #   signed_message = verifier.generate 'a private message'
-    #   verifier.verified(signed_message) # => 'a private message'
+    #   signed_message = verifier.generate('a private message', for: 'test', expires_at: 1.day.from_now)
+    #   verifier.verified(signed_message)
+    #   # => {:pld=>"a private message", :for=>"test", :exp=>"2015-06-29T07:16:12.579Z"}
     #
     # Returns +nil+ if the message was not signed with the same secret.
     #
@@ -64,54 +65,97 @@ module ActiveSupport
     #
     # Returns +nil+ if the message is not Base64-encoded.
     #
-    #   invalid_message = "f--46a0120593880c733a53b6dad75b42ddc1c8996d"
+    #   invalid_message = "header.claims.MTkwMmI3MzY0MDA4NDM2MzVmYjgwMGEzOTJjOGQ2ZDM2Y2VhYjZiYg=="
     #   verifier.verified(invalid_message) # => nil
     #
     # Raises any error raised while decoding the signed message.
     #
-    #   incompatible_message = "test--dad7b06c94abba8d46a15fafaef56c327665d5ff"
+    #   incompatible_message = "aGVhZGVy.Y2xhaW1z.OWYzY2Y1Mzc1MmUxNjJlMzFhZDY3ODVlNGMyMTQ5YWE2OTc0NjQ5MQ=="
     #   verifier.verified(incompatible_message) # => TypeError: incompatible marshal file format
     def verified(signed_message)
-      if valid_message?(signed_message)
-        begin
-          data = signed_message.split("--")[0]
-          @serializer.load(decode(data))
-        rescue ArgumentError => argument_error
-          return if argument_error.message =~ %r{invalid base64}
-          raise
-        end
-      end
+      return unless valid_message?(signed_message)
+      
+      data = signed_message.split('.')[1]
+      @serializer.load(decode(data)).symbolize_keys
+    rescue ArgumentError => argument_error
+      return if argument_error.message =~ %r{invalid base64}
+      raise
     end
 
-    # Decodes the signed message using the +MessageVerifier+'s secret.
+    # Decodes the signed message and legacy signed message using the +MessageVerifier+'s secret.
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
-    #   signed_message = verifier.generate 'a private message'
+    #   signed_message = verifier.generate('a private message', for: 'test', expires_in: 1.day)
     #
-    #   verifier.verify(signed_message) # => 'a private message'
+    #   verifier.verify(signed_message, for: 'test') # => "a private message"
+    #
+    #   legacy_signed_message = "BAhJIhZhIHByaXZhdGUgbWVzc2FnZQY6BkVU--a2a1232deaf49ba164ed0d0b43b3f17cf8026c46"
+    #   verifier.verify(legacy_signed_message) # => "a private message"
     #
     # Raises +InvalidSignature+ if the message was not signed with the same
     # secret or was not Base64-encoded.
     #
     #   other_verifier = ActiveSupport::MessageVerifier.new 'd1ff3r3nt-s3Krit'
     #   other_verifier.verify(signed_message) # => ActiveSupport::MessageVerifier::InvalidSignature
-    def verify(signed_message)
-      verified(signed_message) || raise(InvalidSignature)
+    #
+    # Raises +InvalidClaims+ if the message doesn't have the same purpose as that
+    # given in the options.
+    #   verifier.verify(signed_message, for: 'something_else') # => ActiveSupport::Claims::InvalidClaims
+    #
+    # Raises +ExpiredClaims+ if the message is expired.
+    #   expired_message = verifier.generate('a private message', expires_at: 1.day.ago)
+    #   verifier.verify(signed_message) # => ActiveSupport::Claims::ExpiredClaims
+    def verify(signed_message, options = {})
+      if signed_message.include? "--"
+        verifier = LegacyMessageVerifier.new(@secret, digest: @digest, serializer: @serializer)
+        verifier.verify(signed_message)
+      else
+        if claims = verified(signed_message)
+          Claims.verify!(claims, options)
+        else
+          raise InvalidSignature
+        end
+      end
     end
 
-    # Generates a signed message for the provided value.
+    # Generates a signed message for the given +value+ and
+    # +options+ hash. Choose one between +:expires_at+ and 
+    # +:expires_in+ to set the expiry of the message.
+    #
+    # ==== Options
+    #
+    # * <tt>:expires_at</tt> - Expiry time of the signed message.
+    # * <tt>:expires_in</tt> - Time from now after which the message
+    #   will expire (e.g. 1.month).
+    # * <tt>:for</tt> - Purpose/Scope of the message (defaults to 'universal').
     #
     # The message is signed with the +MessageVerifier+'s secret. Without knowing
-    # the secret, the original value cannot be extracted from the message.
+    # the secret, the original value cannot be extracted from the message. The
+    # messages are signed in the form of JSON Web Tokens (JWTs) having this format:
+    # <base64-encoded header>.<base64-encoded claims>.<base64-encoded signature>
     #
     #   verifier = ActiveSupport::MessageVerifier.new 's3Krit'
-    #   verifier.generate 'a private message' # => "BAhJIhRwcml2YXRlLW1lc3NhZ2UGOgZFVA==--e2d724331ebdee96a10fb99b089508d1c72bd772"
-    def generate(value)
-      data = encode(@serializer.dump(value))
-      "#{data}--#{generate_digest(data)}"
+    #   verifier.generate('a private message')
+    #   # => "BAh7B0kiCHR5cAY6BkVUSSIISldUBjsAVEkiCGFsZwY7AFRJIglTSEExBjsAVA==.BAh7CDoIcGxkSSIWYSBwcml2YXRlIG1lc3NhZ2UGOgZFVDoIZm9ySSIOdW5pdmVyc2FsBjsGVDoIZXhwSSIdMjAxNS0wNy0yOFQxMjoxNjo0MC43OTJaBjsGVA==.MzZlYmE0ZTJjZDYyZmJiNjgyZDQxMjI4MTBkYTNkNzVhZWZmODFiZQ=="
+    def generate(value, options = {})
+      @claims = Claims.new(payload: value, **options)
+      data = [encode(serialized_header), encode(serialized_claims)].join('.')
+      "#{data}.#{encode(generate_digest(data))}"
     end
 
     private
+      def header
+        { 'typ' => 'JWT', 'alg' => @digest.to_s }
+      end
+
+      def serialized_header
+        @serializer.dump header
+      end
+
+      def serialized_claims
+        @serializer.dump @claims.to_h
+      end
+
       def encode(data)
         ::Base64.strict_encode64(data)
       end
@@ -120,9 +164,44 @@ module ActiveSupport
         ::Base64.strict_decode64(data)
       end
 
+      def untampered?(digest, data)
+        ActiveSupport::SecurityUtils.secure_compare digest, encode(generate_digest(data))
+      end
+
       def generate_digest(data)
         require 'openssl' unless defined?(OpenSSL)
         OpenSSL::HMAC.hexdigest(OpenSSL::Digest.const_get(@digest).new, @secret, data)
       end
   end
+
+  private
+    # +LegacyMessageVerifier+ is the same implementation of the previous
+    # +MessageVerifier+ to verify legacy signed messages.
+    class LegacyMessageVerifier < MessageVerifier
+      def valid_message?(signed_message)
+        return if signed_message.nil? || !signed_message.valid_encoding? || signed_message.blank?
+        
+        data, digest = signed_message.split("--")
+        data.present? && digest.present? && ActiveSupport::SecurityUtils.secure_compare(digest, generate_digest(data))
+      end
+
+      def verified(signed_message)
+        return unless valid_message?(signed_message)
+
+        data = signed_message.split("--").first
+        @serializer.load decode(data)
+      rescue ArgumentError => argument_error
+        return if argument_error.message =~ %r{invalid base64}
+        raise
+      end
+
+      def verify(signed_message)
+        verified(signed_message) || raise(InvalidSignature)
+      end
+
+      def generate(value)
+        data = encode(@serializer.dump(value))
+        "#{data}--#{generate_digest(data)}"
+      end
+    end
 end
