@@ -423,21 +423,23 @@ change_column :products, :part_number, :text
 ```
 
 This changes the column `part_number` on products table to be a `:text` field.
+Note that `change_column` command is irreversible.
 
 Besides `change_column`, the `change_column_null` and `change_column_default`
-methods are used specifically to change a not null constraint and default values of a
-column.
+methods are used specifically to change a not null constraint and default
+values of a column.
 
 ```ruby
 change_column_null :products, :name, false
-change_column_default :products, :approved, false
+change_column_default :products, :approved, from: true, to: false
 ```
 
 This sets `:name` field on products to a `NOT NULL` column and the default
-value of the `:approved` field to false.
+value of the `:approved` field from true to false.
 
-TIP: Unlike `change_column` (and `change_column_default`), `change_column_null`
-is reversible.
+Note: You could also write the above `change_column_default` migration as
+`change_column_default :products, :approved, false`, but unlike the previous
+example, this would make your migration irreversible.
 
 ### Column Modifiers
 
@@ -475,7 +477,7 @@ column names can not be derived from the table names, you can use the
 `:column` and `:primary_key` options.
 
 Rails will generate a name for every foreign key starting with
-`fk_rails_` followed by 10 character which is deterministically
+`fk_rails_` followed by 10 characters which are deterministically
 generated from the `from_table` and `column`.
 There is a `:name` option to specify a different name if needed.
 

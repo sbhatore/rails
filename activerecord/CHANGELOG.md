@@ -1,3 +1,30 @@
+*   Fix through associations using scopes having the scope merged multiple
+    times.
+
+    Fixes #20721.
+    Fixes #20727.
+
+    *Sean Griffin*
+
+*   `ActiveRecord::Base.dump_schema_after_migration` applies migration tasks
+    other than `db:migrate`. (eg. `db:rollback`, `db:migrate:dup`, ...)
+
+    Fixes #20743.
+
+    *Yves Senn*
+
+*   Add alternate syntax to make `change_column_default` reversible.
+
+    User can pass in `:from` and `:to` to make `change_column_default` command
+    become reversible.
+
+    Example:
+
+        change_column_default :posts, :status, from: nil, to: "draft"
+        change_column_default :users, authorized, from: true, to: false
+
+    *Prem Sichanugrist*
+
 *   Prevent error when using `force_reload: true` on an unassigned polymorphic
     belongs_to association.
 
